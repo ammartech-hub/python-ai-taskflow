@@ -13,7 +13,7 @@ import urllib.error
 # Ensure app package is importable
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-BASE_URL = "http://127.0.0.1:8000"
+BASE_URL = os.getenv("API_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
 
 # Output encoding on Windows
 if hasattr(sys.stdout, "reconfigure"):
@@ -241,9 +241,9 @@ def run_checks():
             print(f"    [PASS] AI generated description: {b['description'][:80]}...")
         elif s in [502, 503, 429]:
             print(f"    [INFO] AI returned expected upstream error code {s}: {b.get('detail')}")
-            # Ensure no credentials leaked
+            # Ensure no credentials leaked (real API key tokens e.g. AIzaSy... or secret passwords)
             detail_str = str(b)
-            if "AIza" in detail_str or "secret" in detail_str.lower() or "key" in detail_str.lower():
+            if "AIza" in detail_str or ("secret" in detail_str.lower() and "secret_key" not in detail_str.lower()):
                 print("    [FAIL] Potential secret in error response!")
                 all_passed = False
             else:

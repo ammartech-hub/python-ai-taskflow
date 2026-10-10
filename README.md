@@ -552,24 +552,35 @@ To deploy this backend to production platforms (e.g., Render, Railway, AWS ECS, 
 ## 23. Vercel Serverless Deployment & Cloud Database
 
 ### Live Production Deployment
-- **Web Application & Kanban UI**: [https://python-ai-taskflow-b3cb.vercel.app/](https://python-ai-taskflow-b3cb.vercel.app/)
-- **Interactive Swagger Documentation**: [https://python-ai-taskflow-b3cb.vercel.app/docs](https://python-ai-taskflow-b3cb.vercel.app/docs)
-- **Application Health Diagnostic**: [https://python-ai-taskflow-b3cb.vercel.app/health](https://python-ai-taskflow-b3cb.vercel.app/health)
-- **OpenAPI Schema**: [https://python-ai-taskflow-b3cb.vercel.app/openapi.json](https://python-ai-taskflow-b3cb.vercel.app/openapi.json)
+- **Canonical Web Application & Kanban UI**: [https://python-ai-taskflow.vercel.app/](https://python-ai-taskflow.vercel.app/)
+- **Git Branch Deployment**: [https://python-ai-taskflow-git-main-ammartech-hubs-projects.vercel.app/](https://python-ai-taskflow-git-main-ammartech-hubs-projects.vercel.app/)
+- **Interactive Swagger Documentation**: [https://python-ai-taskflow.vercel.app/docs](https://python-ai-taskflow.vercel.app/docs)
+- **Application Health Diagnostic**: [https://python-ai-taskflow.vercel.app/health](https://python-ai-taskflow.vercel.app/health)
+- **OpenAPI JSON Specification**: [https://python-ai-taskflow.vercel.app/openapi.json](https://python-ai-taskflow.vercel.app/openapi.json)
+
+> **Deployment URL Note**: The URL `https://python-ai-taskflow-b3cb.vercel.app/` referenced an older deployment preview (`b3cb`). The permanent, canonical production domain assigned by Vercel for this repository is **`https://python-ai-taskflow.vercel.app/`**, which tracks the verified `main` branch.
 
 ### Serverless Architecture on Vercel
-- **Edge Static CDN**: Static assets (`/frontend/index.html`, `/static/style.css`, `/static/app.js`) are served directly via Vercel's edge cache with sub-20ms latency.
-- **Python ASGI Engine**: API requests (`/api/...`), documentation (`/docs`, `/redoc`), and `/health` route seamlessly to the FastAPI instance via `api/index.py`.
+- **Edge Static Delivery**: The Single Page Application (`frontend/index.html`, `/static/style.css`, `/static/app.js`) is served directly with zero lag.
+- **Python ASGI Engine**: API requests (`/api/...`), documentation (`/docs`, `/redoc`), and `/health` route through the ASGI adapter in `api/index.py` to the FastAPI application.
 - **Serverless PostgreSQL Connection Handling**:
-  - Automatically switches to `NullPool` in serverless environments to prevent idle connection exhaustion.
-  - Normalizes cloud connection strings (`postgres://` -> `postgresql+psycopg://`).
-  - Automatically executes table verification (`create_all`) and idempotent initial seeder on startup, guaranteeing that cloud databases (e.g. Neon, Supabase, Vercel Postgres) work without manual CLI intervention.
+  - Automatically switches to SQLAlchemy's `NullPool` in serverless environments (`VERCEL=1` or `AWS_LAMBDA_FUNCTION_NAME`) to prevent idle connection exhaustion.
+  - Normalizes cloud connection strings (`postgres://` -> `postgresql+psycopg://`) and transparently supports Vercel / Neon injected variables (`POSTGRES_URL`, `POSTGRES_PRISMA_URL`).
+  - Automatically verifies tables and initializes seed accounts on cold-boot via `ensure_database_initialized()`, ensuring fresh cloud databases start effortlessly.
 
-### Required Vercel Environment Variables:
+### Live Production Seed Credentials
+| Email | Password | Role | Description |
+| :--- | :--- | :--- | :--- |
+| `admin@taskflow.dev` | `AdminPass123!` | Administrator | Full oversight, RBAC transitions, system metrics |
+| `user@taskflow.dev` | `UserPass123!` | Regular User | Task ownership, creation, editing |
+| `alex@taskflow.dev` | `AlexPass123!` | Regular User | Dedicated test user for ownership isolation testing |
+
+### Required Production Environment Variables:
 | Variable | Description | Example |
 | :--- | :--- | :--- |
 | `DATABASE_URL` | Cloud PostgreSQL URL with SSL | `postgresql+psycopg://user:pass@ep-cool-pool.neon.tech/neondb?sslmode=require` |
 | `JWT_SECRET_KEY` | 32+ character HMAC secret | `9b47e2a4c68d19e0f31c2d8b5a4e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e` |
 | `GEMINI_API_KEY` | *(Optional)* Google AI Studio Key | `AIzaSy...` |
 | `ENVIRONMENT` | Environment identifier | `production` |
+
 

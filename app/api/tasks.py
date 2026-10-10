@@ -25,6 +25,12 @@ router = APIRouter(prefix="/tasks", tags=["Tasks"])
 
 
 @router.post(
+    "",
+    response_model=TaskResponse,
+    status_code=status.HTTP_201_CREATED,
+    include_in_schema=False,
+)
+@router.post(
     "/",
     response_model=TaskResponse,
     status_code=status.HTTP_201_CREATED,
@@ -44,6 +50,12 @@ def create_task(
     return TaskResponse.model_validate(task)
 
 
+@router.get(
+    "",
+    response_model=TaskListResponse,
+    status_code=status.HTTP_200_OK,
+    include_in_schema=False,
+)
 @router.get(
     "/",
     response_model=TaskListResponse,
