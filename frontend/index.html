@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TaskFlow AI - Intelligent Enterprise Task Management</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22%20%22100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+</head>
+<body>
+
+  <!-- Navigation Bar -->
+  <nav class="navbar">
+    <a href="#" class="brand">
+      <div class="brand-icon">⚡</div>
+      <div>
+        <div class="brand-name">TaskFlow AI</div>
+      </div>
+      <span class="brand-tag">v1.0 REST</span>
+    </a>
+
+    <div class="nav-actions">
+      <div class="health-pill" id="healthPill" title="Backend & DB status">
+        <span class="health-dot" id="healthDot"></span>
+        <span id="healthText">Connecting...</span>
+      </div>
+
+      <!-- User Widget (Hidden when logged out) -->
+      <div class="user-profile-widget" id="userWidget" style="display: none;">
+        <div class="user-avatar" id="userAvatar">U</div>
+        <div style="display: flex; flex-direction: column;">
+          <span style="font-size: 0.82rem; font-weight: 700;" id="userName">User Name</span>
+          <span class="user-role-badge role-user" id="userRoleBadge">USER</span>
+        </div>
+        <button class="btn btn-secondary btn-sm" id="logoutBtn" style="margin-left: 0.5rem;" title="Log out">
+          Sign Out
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Application Container -->
+  <main class="container">
+
+    <!-- Auth View (Shown when not authenticated) -->
+    <section class="auth-wrapper" id="authSection">
+      <div class="auth-card">
+        <div style="text-align: center; margin-bottom: 1.8rem;">
+          <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">⚡</div>
+          <h2 style="font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em;">Welcome to TaskFlow AI</h2>
+          <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.35rem;">
+            Enterprise Task Management powered by Google Gemini AI
+          </p>
+        </div>
+
+        <div class="auth-tabs">
+          <div class="auth-tab active" id="tabLogin" onclick="switchAuthTab('login')">Sign In</div>
+          <div class="auth-tab" id="tabRegister" onclick="switchAuthTab('register')">Register</div>
+        </div>
+
+        <!-- Login Form -->
+        <form id="loginForm" onsubmit="handleLogin(event)">
+          <div class="form-group">
+            <label class="form-label" for="loginEmail">Email Address</label>
+            <input type="email" id="loginEmail" class="form-input" placeholder="user@taskflow.dev" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="loginPassword">Password</label>
+            <input type="password" id="loginPassword" class="form-input" placeholder="••••••••" required>
+          </div>
+          <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 0.5rem;" id="loginSubmitBtn">
+            Sign In to Dashboard
+          </button>
+        </form>
+
+        <!-- Register Form (Hidden by default) -->
+        <form id="registerForm" style="display: none;" onsubmit="handleRegister(event)">
+          <div class="form-group">
+            <label class="form-label" for="regName">Full Name</label>
+            <input type="text" id="regName" class="form-input" placeholder="Jane Developer" required minlength="2">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="regEmail">Email Address</label>
+            <input type="email" id="regEmail" class="form-input" placeholder="jane@example.com" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="regPassword">Password (Min 8 chars)</label>
+            <input type="password" id="regPassword" class="form-input" placeholder="••••••••" required minlength="8">
+          </div>
+          <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 0.5rem;" id="regSubmitBtn">
+            Create Account
+          </button>
+        </form>
+
+        <!-- Quick 1-Click Demo Logins -->
+        <div class="quick-logins-box">
+          <div class="quick-logins-title">Quick Demo Logins (Seed Accounts)</div>
+          <div class="quick-login-btns">
+            <button type="button" class="quick-login-btn" onclick="fillAndLogin('user@taskflow.dev', 'UserPass123!')">
+              <span>👩‍💻 <strong>Jane Developer</strong> (Regular User)</span>
+              <span style="color: #6366f1;">Log in →</span>
+            </button>
+            <button type="button" class="quick-login-btn" onclick="fillAndLogin('alex@taskflow.dev', 'AlexPass123!')">
+              <span>🎨 <strong>Alex Designer</strong> (Second User)</span>
+              <span style="color: #6366f1;">Log in →</span>
+            </button>
+            <button type="button" class="quick-login-btn" onclick="fillAndLogin('admin@taskflow.dev', 'AdminPass123!')">
+              <span>🛡️ <strong>System Administrator</strong> (Admin)</span>
+              <span style="color: #ec4899;">Log in →</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Dashboard View (Shown when authenticated) -->
+    <section id="dashboardSection" style="display: none;">
+
+      <!-- Metrics Ribbon -->
+      <div class="metrics-grid">
+        <div class="metric-card" style="--card-accent: #6366f1;">
+          <div class="metric-title">Total Tasks</div>
+          <div class="metric-value" id="statTotal">0</div>
+        </div>
+        <div class="metric-card" style="--card-accent: #f59e0b;">
+          <div class="metric-title">Pending</div>
+          <div class="metric-value" id="statPending" style="color: #f59e0b;">0</div>
+        </div>
+        <div class="metric-card" style="--card-accent: #3b82f6;">
+          <div class="metric-title">In Progress</div>
+          <div class="metric-value" id="statInProgress" style="color: #3b82f6;">0</div>
+        </div>
+        <div class="metric-card" style="--card-accent: #a855f7;">
+          <div class="metric-title">Testing</div>
+          <div class="metric-value" id="statTesting" style="color: #a855f7;">0</div>
+        </div>
+        <div class="metric-card" style="--card-accent: #10b981;">
+          <div class="metric-title">Completed</div>
+          <div class="metric-value" id="statCompleted" style="color: #10b981;">0</div>
+        </div>
+      </div>
+
+      <!-- Action & Filter Toolbar -->
+      <div class="toolbar">
+        <div class="toolbar-left">
+          <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="taskSearch" class="search-input" placeholder="Search tasks by title..." oninput="handleSearch(this.value)">
+          </div>
+
+          <div class="filter-pills">
+            <button class="filter-pill active" data-status="" onclick="setFilterStatus('')">All</button>
+            <button class="filter-pill" data-status="Pending" onclick="setFilterStatus('Pending')">Pending</button>
+            <button class="filter-pill" data-status="In Progress" onclick="setFilterStatus('In Progress')">In Progress</button>
+            <button class="filter-pill" data-status="Testing" onclick="setFilterStatus('Testing')">Testing</button>
+            <button class="filter-pill" data-status="Completed" onclick="setFilterStatus('Completed')">Completed</button>
+          </div>
+        </div>
+
+        <div class="toolbar-right">
+          <button class="btn btn-secondary btn-sm" onclick="loadTasks()" title="Reload tasks">
+            ↻ Refresh
+          </button>
+          <button class="btn btn-ai" onclick="openCreateModal()">
+            ✨ New AI Task
+          </button>
+        </div>
+      </div>
+
+      <!-- Kanban Columns Grid -->
+      <div class="kanban-grid">
+        <!-- Pending Column -->
+        <div class="kanban-column">
+          <div class="column-header">
+            <div class="column-title" style="color: #f59e0b;">
+              <span>⏳</span> Pending
+            </div>
+            <span class="column-badge" id="badgePending">0</span>
+          </div>
+          <div class="task-cards-list" id="colPending"></div>
+        </div>
+
+        <!-- In Progress Column -->
+        <div class="kanban-column">
+          <div class="column-header">
+            <div class="column-title" style="color: #3b82f6;">
+              <span>⚡</span> In Progress
+            </div>
+            <span class="column-badge" id="badgeInProgress">0</span>
+          </div>
+          <div class="task-cards-list" id="colInProgress"></div>
+        </div>
+
+        <!-- Testing Column -->
+        <div class="kanban-column">
+          <div class="column-header">
+            <div class="column-title" style="color: #a855f7;">
+              <span>🧪</span> Testing
+            </div>
+            <span class="column-badge" id="badgeTesting">0</span>
+          </div>
+          <div class="task-cards-list" id="colTesting"></div>
+        </div>
+
+        <!-- Completed Column -->
+        <div class="kanban-column">
+          <div class="column-header">
+            <div class="column-title" style="color: #10b981;">
+              <span>✅</span> Completed
+            </div>
+            <span class="column-badge" id="badgeCompleted">0</span>
+          </div>
+          <div class="task-cards-list" id="colCompleted"></div>
+        </div>
+      </div>
+
+      <!-- Admin Oversight Portal (Visible only for Admins) -->
+      <section class="admin-section" id="adminPortal" style="display: none;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
+          <div>
+            <h3 style="font-size: 1.3rem; font-weight: 800; display: flex; align-items: center; gap: 0.5rem;">
+              <span>🛡️</span> Administrative User Management
+            </h3>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.2rem;">
+              Manage user permissions and view global system statistics
+            </p>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="loadAdminUsers()">
+            ↻ Refresh Users
+          </button>
+        </div>
+
+        <div style="overflow-x: auto;">
+          <table class="users-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Created</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="adminUsersTbody">
+              <!-- Populated dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </section>
+
+  </main>
+
+  <!-- Create Task Modal -->
+  <div class="modal-overlay" id="createTaskModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">Create New Task</h3>
+        <button class="modal-close" onclick="closeModal('createTaskModal')">&times;</button>
+      </div>
+      <form onsubmit="handleCreateTask(event)">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label" for="taskTitle">Task Title *</label>
+            <input type="text" id="taskTitle" class="form-input" placeholder="e.g. Prepare monthly sales report" required minlength="3" maxlength="200">
+          </div>
+
+          <!-- AI Magic Button -->
+          <div style="margin-bottom: 1.25rem;">
+            <button type="button" class="btn btn-ai btn-sm" id="btnGenerateAI" onclick="handleGenerateAIDescription()">
+              <span>✨ Generate Description with Gemini AI</span>
+            </button>
+            <div id="aiSpinner" style="display: none; font-size: 0.8rem; color: #a5b4fc; margin-top: 0.5rem;">
+              <span>🤖 Consulting Google Gemini AI...</span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="taskDescription">Task Description</label>
+            <textarea id="taskDescription" class="form-textarea" placeholder="Detailed description or click AI Generate above..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('createTaskModal')">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="btnSubmitCreateTask">Create Task</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Edit Task Modal -->
+  <div class="modal-overlay" id="editTaskModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title" id="editModalHeading">Task Details</h3>
+        <button class="modal-close" onclick="closeModal('editTaskModal')">&times;</button>
+      </div>
+      <form onsubmit="handleUpdateTask(event)">
+        <input type="hidden" id="editTaskId">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label" for="editTaskTitle">Task Title *</label>
+            <input type="text" id="editTaskTitle" class="form-input" required minlength="1" maxlength="200">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="editTaskDescription">Task Description</label>
+            <textarea id="editTaskDescription" class="form-textarea"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="editTaskStatus">Lifecycle Status</label>
+            <select id="editTaskStatus" class="form-select">
+              <option value="Pending">Pending</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Testing">Testing</option>
+              <option value="Completed">Completed</option>
+            </select>
+            <p id="statusNotice" style="font-size: 0.75rem; color: #f59e0b; margin-top: 0.35rem; display: none;">
+              🔒 <em>Status updates are restricted to administrators per system security policy.</em>
+            </p>
+          </div>
+        </div>
+        <div class="modal-footer" style="justify-content: space-between;">
+          <button type="button" class="btn btn-danger btn-sm" onclick="handleDeleteTask()">
+            Delete Task
+          </button>
+          <div style="display: flex; gap: 0.5rem;">
+            <button type="button" class="btn btn-secondary" onclick="closeModal('editTaskModal')">Cancel</button>
+            <button type="submit" class="btn btn-primary">Save Changes</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Scripts -->
+  <script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,165 @@
+TaskFlow AI — AI-Powered Task Management System
+A Python REST API and web interface for managing tasks with JWT authentication, role-based access control, PostgreSQL persistence, and Google Gemini-powered task-description generation. This project was built for the Python & AI Integration Intern assessment.
+Features
+User registration and login with JWT Bearer tokens.
+Password hashing; passwords are not returned by the API.
+`user` and `admin` roles.
+Task creation, listing with pagination/status filtering, viewing, editing, and deletion.
+Regular users can access their own tasks and cannot change task status or access another user's tasks.
+Administrators can view tasks across users, assign tasks, and update task status.
+AI task-description generation using Google Gemini, with configuration and provider errors handled by the backend.
+PostgreSQL database with SQLAlchemy models and Alembic migrations.
+Idempotent sample-data seeder, Postman collection, and automated pytest suite.
+Browser-based TaskFlow AI interface served by the FastAPI application.
+Technology stack
+Python 3.11 (tested locally with Python 3.11.9)
+FastAPI and Uvicorn
+PostgreSQL 18, SQLAlchemy 2, psycopg 3
+Alembic migrations
+JWT authentication, bcrypt password hashing, Pydantic validation
+Google Gemini (`gemini-2.5-flash` by default)
+Pytest and HTTPX
+Project structure
+```text
+app/
+  ai/            Gemini integration
+  api/           Authentication, tasks, admin routes
+  auth/          JWT, password hashing, authorization dependencies
+  database/      SQLAlchemy engine and session setup
+  models/        User and Task ORM models
+  schemas/       Request/response validation
+  services/      Authentication and task business logic
+  main.py        FastAPI application and frontend route
+  config.py      Environment settings
+alembic/         Database migration history
+frontend/        HTML, CSS, and JavaScript UI
+postman/         Importable Postman collection
+scripts/         Seeder and diagnostic scripts
+tests/           Automated tests
+.env.example     Safe environment template
+requirements.txt Python dependencies
+README.md        Setup and usage documentation
+```
+Requirements
+Python 3.11 recommended
+PostgreSQL 14 or newer
+A Google AI Studio API key for live Gemini requests (optional for starting the app; required for live AI generation)
+Setup — Windows PowerShell
+Run these commands from the project root (the directory containing `requirements.txt`):
+```powershell
+# 1. Create and activate a virtual environment
+py -3.11 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+
+# 2. Install dependencies
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+
+# 3. Create your local environment file
+Copy-Item .env.example .env
+```
+Edit `.env` and set your own PostgreSQL password, a new random JWT secret, and (if using live AI) your Gemini API key. Do not commit or submit `.env`.
+Generate a JWT secret with:
+```powershell
+python -c "import secrets; print(secrets.token_hex(32))"
+```
+Environment configuration
+Set these values in `.env`:
+Variable	Purpose
+`DATABASE_URL`	SQLAlchemy PostgreSQL connection string; include your PostgreSQL host and port
+`JWT_SECRET_KEY`	Private key used to sign access tokens; generate a unique value
+`JWT_ALGORITHM`	JWT signing algorithm; default `HS256`
+`ACCESS_TOKEN_EXPIRE_MINUTES`	Token lifetime; default `60`
+`GEMINI_API_KEY`	Google AI Studio key; leave blank if not using the live AI feature
+`GEMINI_MODEL`	Gemini model name; default `gemini-2.5-flash`
+`APP_NAME`, `ENVIRONMENT`, `DEBUG`, `HOST`, `PORT`	Application configuration
+`SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`	Local seed administrator credentials
+`SEED_USER_EMAIL`, `SEED_USER_PASSWORD`	Local seed regular-user credentials
+Example PostgreSQL URL (replace the example values with your own):
+```dotenv
+DATABASE_URL=postgresql+psycopg://postgres:YOUR_DATABASE_PASSWORD@localhost:5432/task_management
+JWT_SECRET_KEY=REPLACE_WITH_A_RANDOM_SECRET
+GEMINI_API_KEY=
+GEMINI_MODEL=gemini-2.5-flash
+```
+If your local PostgreSQL server listens on port `5433`, use `5433` instead of `5432`. If a password contains URL-special characters, URL-encode them in the connection URL.
+Create the database in PostgreSQL before applying migrations. For example, in `psql` connected to a maintenance database:
+```sql
+CREATE DATABASE task_management;
+```
+Apply migrations and load sample data
+Run from the project root with the virtual environment active:
+```powershell
+python -m alembic upgrade head
+python scripts/seed.py
+```
+The seeder creates sample users and tasks if they do not already exist. It is intended for local development and assessment demonstrations. Do not use the documented demo passwords in production.
+Run the application
+```powershell
+python -m uvicorn app.main:app --reload
+```
+Open:
+Web interface: http://127.0.0.1:8000/
+Swagger API docs: http://127.0.0.1:8000/docs
+OpenAPI schema: http://127.0.0.1:8000/openapi.json
+Keep the terminal running while using the application. Stop the server with `Ctrl+C`.
+Local demo credentials
+These are development-only seed credentials. They are not production credentials.
+Role	Email	Password
+Administrator	`admin@taskflow.dev`	`AdminPass123!`
+Regular user	`user@taskflow.dev`	`UserPass123!`
+Second regular user	`alex@taskflow.dev`	`AlexPass123!`
+If you changed the seed environment variables, use the values in your local `.env`. The seeder does not reset an existing account's password when that account already exists.
+API endpoint overview
+All routes are documented interactively at `/docs`.
+Method	Endpoint	Purpose
+`POST`	`/api/auth/register`	Register a regular user
+`POST`	`/api/auth/login`	Authenticate and receive a JWT
+`GET`	`/api/auth/me`	Get the authenticated user's profile
+`POST`	`/api/tasks/`	Create a task
+`GET`	`/api/tasks/`	List tasks with pagination and optional status filter
+`POST`	`/api/tasks/generate-description`	Generate a task description with Gemini
+`GET`	`/api/tasks/{id}`	View a task the caller is authorized to access
+`PUT`	`/api/tasks/{id}`	Update task title/description when authorized
+`PATCH`	`/api/tasks/{id}/status`	Update task status (admin only)
+`DELETE`	`/api/tasks/{id}`	Delete a task when authorized
+Valid task statuses are `Pending`, `In Progress`, `Testing`, and `Completed`. Protected endpoints require `Authorization: Bearer <access_token>`.
+AI feature and configuration
+The implemented AI feature is Generate Task Description. Send a task title to `POST /api/tasks/generate-description`; the backend uses the configured Gemini model to produce a suitable description. Set `GEMINI_API_KEY` in `.env` to enable live provider calls. The project handles unconfigured AI, provider errors, rate limiting, and invalid requests with API errors rather than exposing credentials.
+You do not need to submit an API key. The `.env.example` file contains placeholders only. Automated AI tests use mocked responses and do not require a live Gemini API key.
+Postman collection
+Import `postman/task-management-collection.json` into Postman. Set the `base_url` variable to `http://127.0.0.1:8000` (or your server URL). The collection includes registration, regular-user login, admin login, task APIs, authorization checks, and AI requests. Login requests save JWTs to collection/environment variables for later protected requests.
+Use a fresh email when running the registration request because duplicate emails are rejected. Run the login requests before protected task requests.
+Run automated tests
+```powershell
+python -m pytest -v
+```
+The current local verification run completed with 40 passed and 4 warnings. AI provider behavior is mocked in tests, so this verifies application behavior without making live Gemini requests. Re-run the tests after making changes.
+Database migrations and seed data
+Migration scripts are under `alembic/versions/`.
+Apply schema changes with `python -m alembic upgrade head`.
+Populate local sample data with `python scripts/seed.py`.
+No standalone SQL dump is required; schema creation is managed through migrations and SQLAlchemy models.
+Security notes
+Never commit or submit `.env`, API keys, database passwords, JWT secrets, or local credential files.
+Use a unique, strong `JWT_SECRET_KEY` outside development.
+Change the sample passwords and disable demo accounts before deploying publicly.
+Do not expose PostgreSQL to the public internet for local development.
+Run with `DEBUG=false` and an appropriate production server/configuration in production.
+Assessment deliverables checklist
+[x] FastAPI application source
+[x] PostgreSQL models and Alembic migration
+[x] Seed script
+[x] JWT authentication and role-based access control
+[x] Gemini AI task-description feature
+[x] `.env.example` with placeholders
+[x] `requirements.txt`
+[x] Postman collection
+[x] Automated tests
+[x] README setup, configuration, endpoints, and demo credentials
+Assumptions and decisions
+Public registration always creates a regular `user`; clients cannot grant themselves the `admin` role.
+Regular users can create, list, view, edit, and delete their own tasks, but only administrators can update task status.
+Administrators can access tasks across users and assign tasks when creating them.
+The local seeder is for development/assessment use only.
+Live AI functionality requires the developer's own Gemini API key; no key is included in the submission.

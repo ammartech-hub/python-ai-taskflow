@@ -1,0 +1,9 @@
+.venv
+venv
+__pycache__
+*.pyc
+.pytest_cache
+.vscode
+.git
+taskflow_ai_submission.zip
+scripts/reset_postgres_pw.ps1
