@@ -1,4 +1,8 @@
-"""Vercel Serverless Function entry point for FastAPI."""
+"""Vercel Serverless Function entry point for FastAPI.
+
+Includes ASGI path translation to guarantee that Vercel rewrites preserve
+the original client requested URI (such as '/', '/docs', '/health', '/api/...').
+"""
 
 import os
 import sys
@@ -10,5 +14,28 @@ if root_dir not in sys.path:
 
 from app.main import app
 
-# Expose both app and handler for universal ASGI serverless compatibility
-handler = app
+
+class VercelPathMiddleware:
+    """ASGI middleware to restore the original client path on Vercel rewrites."""
+
+    def __init__(self, asgi_app):
+        self.asgi_app = asgi_app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] in ("http", "websocket"):
+            headers = dict(scope.get("headers", []))
+            # Vercel sends the client-facing URI in the 'x-matched-path' header
+            matched_path = headers.get(b"x-matched-path", b"").decode("utf-8")
+
+            if matched_path and not matched_path.startswith("/api/index"):
+                scope["path"] = matched_path
+            elif scope.get("path", "").startswith("/api/index.py"):
+                scope["path"] = scope["path"][len("/api/index.py"):] or "/"
+            elif scope.get("path", "").startswith("/api/index"):
+                scope["path"] = scope["path"][len("/api/index"):] or "/"
+
+        await self.asgi_app(scope, receive, send)
+
+
+# Expose both app and handler wrapped with the Vercel path translator
+handler = VercelPathMiddleware(app)
