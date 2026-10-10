@@ -3,7 +3,7 @@
  * Connects directly to FastAPI REST Endpoints & Google Gemini AI
  */
 
-const API_BASE = window.location.origin;
+const API_BASE = window.__API_BASE__ || window.API_BASE_URL || window.location.origin;
 
 let state = {
   token: localStorage.getItem('taskflow_token') || null,

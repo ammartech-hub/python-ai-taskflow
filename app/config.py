@@ -55,11 +55,35 @@ class Settings(BaseSettings):
         description="Configured Gemini model identifier",
     )
 
+    # Optional Explicit API Base URL for separate frontend deployment
+    API_BASE_URL: Optional[str] = Field(default=None, description="Explicit public backend URL for frontend client")
+
     # Seed User Configuration
     SEED_ADMIN_EMAIL: str = "admin@taskflow.dev"
     SEED_ADMIN_PASSWORD: str = "AdminPass123!"
     SEED_USER_EMAIL: str = "user@taskflow.dev"
     SEED_USER_PASSWORD: str = "UserPass123!"
+
+    @property
+    def sync_database_url(self) -> str:
+        """Resolve normalized database URL compatible with psycopg3, cloud providers, and Vercel."""
+        import os
+        raw_url = self.DATABASE_URL
+
+        # If DATABASE_URL is not customized or points to localhost, check Vercel/Neon injected variables
+        if not raw_url or "localhost" in raw_url:
+            vercel_pg = os.getenv("POSTGRES_URL") or os.getenv("POSTGRES_PRISMA_URL") or os.getenv("POSTGRES_URL_NON_POOLING")
+            if vercel_pg:
+                raw_url = vercel_pg
+
+        url = raw_url.strip()
+        # Ensure psycopg3 driver scheme
+        if url.startswith("postgres://"):
+            url = "postgresql+psycopg://" + url[len("postgres://"):]
+        elif url.startswith("postgresql://") and not url.startswith("postgresql+psycopg://"):
+            url = "postgresql+psycopg://" + url[len("postgresql://"):]
+
+        return url
 
     @property
     def is_ai_configured(self) -> bool:

@@ -546,3 +546,30 @@ To deploy this backend to production platforms (e.g., Render, Railway, AWS ECS, 
    ```bash
    uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4 --proxy-headers --forwarded-allow-ips='*'
    ```
+
+---
+
+## 23. Vercel Serverless Deployment & Cloud Database
+
+### Live Production Deployment
+- **Web Application & Kanban UI**: [https://python-ai-taskflow-b3cb.vercel.app/](https://python-ai-taskflow-b3cb.vercel.app/)
+- **Interactive Swagger Documentation**: [https://python-ai-taskflow-b3cb.vercel.app/docs](https://python-ai-taskflow-b3cb.vercel.app/docs)
+- **Application Health Diagnostic**: [https://python-ai-taskflow-b3cb.vercel.app/health](https://python-ai-taskflow-b3cb.vercel.app/health)
+- **OpenAPI Schema**: [https://python-ai-taskflow-b3cb.vercel.app/openapi.json](https://python-ai-taskflow-b3cb.vercel.app/openapi.json)
+
+### Serverless Architecture on Vercel
+- **Edge Static CDN**: Static assets (`/frontend/index.html`, `/static/style.css`, `/static/app.js`) are served directly via Vercel's edge cache with sub-20ms latency.
+- **Python ASGI Engine**: API requests (`/api/...`), documentation (`/docs`, `/redoc`), and `/health` route seamlessly to the FastAPI instance via `api/index.py`.
+- **Serverless PostgreSQL Connection Handling**:
+  - Automatically switches to `NullPool` in serverless environments to prevent idle connection exhaustion.
+  - Normalizes cloud connection strings (`postgres://` -> `postgresql+psycopg://`).
+  - Automatically executes table verification (`create_all`) and idempotent initial seeder on startup, guaranteeing that cloud databases (e.g. Neon, Supabase, Vercel Postgres) work without manual CLI intervention.
+
+### Required Vercel Environment Variables:
+| Variable | Description | Example |
+| :--- | :--- | :--- |
+| `DATABASE_URL` | Cloud PostgreSQL URL with SSL | `postgresql+psycopg://user:pass@ep-cool-pool.neon.tech/neondb?sslmode=require` |
+| `JWT_SECRET_KEY` | 32+ character HMAC secret | `9b47e2a4c68d19e0f31c2d8b5a4e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e` |
+| `GEMINI_API_KEY` | *(Optional)* Google AI Studio Key | `AIzaSy...` |
+| `ENVIRONMENT` | Environment identifier | `production` |
+

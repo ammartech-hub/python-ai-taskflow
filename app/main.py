@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 
 from app.config import settings
-from app.database.connection import check_database_connection
+from app.database.connection import check_database_connection, check_tables_exist, ensure_database_initialized
 from app.api import auth_router, tasks_router, admin_router
 from app.ai.gemini_service import AIServiceException
 
@@ -33,8 +33,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     db_ok = check_database_connection()
     if db_ok:
         logger.info("Database connection established successfully.")
+        # Ensure tables and seed records exist automatically (essential for serverless)
+        ensure_database_initialized()
     else:
-        logger.warning("Database connection failed or pending migration. Verify DATABASE_URL.")
+        logger.warning("Database connection failed or pending configuration. Verify DATABASE_URL.")
 
     if settings.is_ai_configured:
         logger.info("Google Gemini AI integration enabled with model: %s", settings.GEMINI_MODEL)
@@ -60,11 +62,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS configuration for client integration
+# CORS configuration for client integration (Bearer tokens work universally with allow_credentials=False)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -137,6 +139,21 @@ async def global_exception_handler(request: Request, exc: Exception):
 # Health and Informational Endpoints
 # ==============================================================================
 
+import os
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
+
+# Resolve frontend directory path robustly across local dev, Docker, and Vercel Lambda
+candidate_dirs = [
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend")),
+    os.path.abspath(os.path.join(os.getcwd(), "frontend")),
+    os.path.abspath("/var/task/frontend"),
+]
+frontend_dir = next((d for d in candidate_dirs if os.path.isdir(d)), candidate_dirs[0])
+if os.path.exists(frontend_dir):
+    app.mount("/static", StaticFiles(directory=frontend_dir), name="static")
+
+
 @app.get(
     "/health",
     tags=["System"],
@@ -146,23 +163,15 @@ async def global_exception_handler(request: Request, exc: Exception):
 def health_check():
     """Verify application health and external dependencies."""
     db_alive = check_database_connection()
+    tables_ready = check_tables_exist() if db_alive else False
     return {
-        "status": "healthy" if db_alive else "degraded",
+        "status": "healthy" if (db_alive and tables_ready) else ("degraded" if db_alive else "down"),
         "database_connected": db_alive,
+        "tables_initialized": tables_ready,
         "ai_configured": settings.is_ai_configured,
         "environment": settings.ENVIRONMENT,
         "version": settings.APP_VERSION,
     }
-
-
-import os
-from fastapi.responses import JSONResponse, FileResponse
-from fastapi.staticfiles import StaticFiles
-
-# Resolve frontend directory path
-frontend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend"))
-if os.path.exists(frontend_dir):
-    app.mount("/static", StaticFiles(directory=frontend_dir), name="static")
 
 
 @app.get(
