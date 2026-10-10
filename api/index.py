@@ -7,6 +7,7 @@ import os
 import sys
 import json
 import logging
+import urllib.parse
 
 # Ensure the root project directory is on sys.path so 'app' is importable
 root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -32,14 +33,13 @@ class VercelPathMiddleware:
                 for k, v in raw_headers.items()
             }
             current_path = scope.get("path", "")
-            raw_path = scope.get("raw_path", b"").decode("utf-8", "ignore")
+            query_string = scope.get("query_string", b"").decode("utf-8", "ignore")
 
-            # Diagnostic endpoint to view raw Vercel environment
-            if "debug-info" in current_path or "debug-info" in raw_path or "debug-info" in headers_lower.get("x-matched-path", ""):
+            # Diagnostic endpoint
+            if "debug-info" in current_path or "__debug" in query_string or "debug-info" in headers_lower.get("x-matched-path", ""):
                 diagnostic = {
                     "scope_path": current_path,
-                    "scope_raw_path": raw_path,
-                    "query_string": scope.get("query_string", b"").decode("utf-8", "ignore"),
+                    "query_string": query_string,
                     "headers": headers_lower,
                 }
                 body = json.dumps(diagnostic, indent=2).encode("utf-8")
@@ -54,16 +54,17 @@ class VercelPathMiddleware:
                 await send({"type": "http.response.body", "body": body})
                 return
 
-            # Check if headers contain the client's actual requested URI
-            # Vercel Edge Router headers:
-            matched_path = headers_lower.get("x-matched-path")
-            forwarded_uri = headers_lower.get("x-forwarded-uri")
-            now_route_matches = headers_lower.get("x-now-route-matches")
+            # 1. First priority: Explicit rewrite query parameter __path
+            if "__path=" in query_string:
+                params = urllib.parse.parse_qs(query_string)
+                if "__path" in params and params["__path"]:
+                    scope["path"] = params["__path"][0]
 
-            if matched_path and not matched_path.startswith("/api/index"):
-                scope["path"] = matched_path
-            elif forwarded_uri and not forwarded_uri.startswith("/api/index"):
-                scope["path"] = forwarded_uri.split("?")[0]
+            # 2. Second priority: Vercel Edge Headers
+            elif headers_lower.get("x-matched-path") and not headers_lower["x-matched-path"].startswith("/api/index"):
+                scope["path"] = headers_lower["x-matched-path"]
+
+            # 3. Third priority: Strip /api/index.py or /api/index prefix if present
             elif current_path.startswith("/api/index.py"):
                 scope["path"] = current_path[len("/api/index.py"):] or "/"
             elif current_path.startswith("/api/index"):
@@ -72,6 +73,5 @@ class VercelPathMiddleware:
         await self.asgi_app(scope, receive, send)
 
 
-# Wrap and export BOTH app and handler so Vercel uses the middleware regardless of discovery mechanism
 app = VercelPathMiddleware(_fastapi_app)
 handler = app
